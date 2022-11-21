@@ -1,0 +1,188 @@
+-- Q: Urutkan benua berdasarkan jumlah company terbanyak. Benua mana yang memiliki unicorn paling banyak? 
+SELECT continent, count(company) as total_company
+from unicorn_companies
+group by continent
+order by total_company desc;
+
+-- Q: Negara apa saja yang memiliki jumlah unicorn di atas 100? (Tampilkan jumlahnya)
+select country, count(company) as total_company
+from unicorn_companies
+group by country
+having count(country) > 100
+
+
+--Q: Industri apa yang paling besar di antara unicorn company berdasarkan total fundingnya? 
+-- Berapa rata-rata valuasinya?
+select industry, sum(funding)as total_funding, round(avg(valuation)) avg_valuation
+from unicorn_industries a
+join unicorn_funding b
+on a.company_id = b.company_id
+group by industry
+order by total_funding desc;
+
+--Berdasarkan dataset ini, untuk industri jawaban nomor 3 berapakah jumlah company yang bergabung 
+--sebagai unicorn di tiap tahunnya di rentang tahun 2016-2022?
+
+select count(distinct  company) as total_company,
+	extract (YEAR from date_joined) as year_joined
+from unicorn_companies a
+	join  unicorn_dates b
+	on a.company_id = b.company_id
+	join unicorn_industries c
+	on a.company_id = c.company_id
+where industry = 'Fintech'
+group by year_joined
+having extract (YEAR from date_joined) between '2016'and '2022';
+
+--Q: Tampilkan data detail company (nama company, kota asal, negara dan benua asal) beserta industri dan valuasinya. 
+--Dari negara mana company dengan valuasi terbesar berasal dan apa industrinya?
+--Bagaimana dengan Indonesia? Company apa yang memiliki valuasi paling besar di Indonesia?
+
+select	a.*,
+		b.industry,
+		c.valuation
+from unicorn_companies a
+join unicorn_industries b
+on a.company_id = b.company_id
+join unicorn_funding c
+on a.company_id = c.company_id
+order by valuation desc
+
+select	a.*,
+		b.industry,
+		c.valuation
+from unicorn_companies a
+	join unicorn_industries b
+	on a.company_id = b.company_id
+	join unicorn_funding c
+	on a.company_id = c.company_id
+where country = 'Indonesia'
+order by valuation desc;
+
+--Q: Berapa umur company tertua ketika company tersebut bergabung menjadi unicorn company? 
+--Dari negara mana company tersebut berasal?
+select distinct company, country, 
+	extract ( year - current from date_joined)
+from unicorn_companies a
+join unicorn_dates b
+on a.company_id = b.company_id
+
+--Q: Untuk company yang didirikan tahun antara tahun 1960 dan 2000 (batas atas dan bawah masuk ke dalam rentang),
+--berapa umur company tertua ketika company tersebut bergabung menjadi unicorn company (date_joined)? 
+--Dari negara mana company tersebut berasal?
+
+select country, year_founded, 
+extract(year from date_joined)- year_founded as age_company
+from unicorn_companies a
+join unicorn_dates b
+on a.company_id = b.company_id
+where year_founded between '1960' and '2000'
+order by age_company DESC
+
+--Q1: Ada berapa company yang dibiayai oleh minimal satu investor yang mengandung nama ‘venture’?
+select count(distinct company_id) as perusahaan
+from unicorn_funding
+where select_investors like '%venture%'
+
+
+select count(distinct company ) as perusahaan
+from unicorn_companies a
+join unicorn_funding b
+	on a.company_id=b.company_id
+where select_investors like '%venture%'
+
+--Q2: Ada berapa company yang dibiayai oleh minimal satu investor yang mengandung nama:
+--Venture
+--Capital
+--Partner
+--Petunjuk: Gunakan LIKE dan CASE WHEN di dalam COUNT DISTINCT
+select	count(distinct case when lower(select_investors) 
+			  	like '%venture%' then company_id end) as investor_venture,
+		count(distinct case when lower(select_investors) 
+			  	like '%capital%' then company_id end) as investor_capital,
+		count(distinct case when lower(select_investors) 
+			  	like '%partner%' then company_id end) as investor_partner
+from unicorn_funding;
+
+
+--Q: Di Indonesia terdapat banyak startup yang bergerak di bidang layanan logistik. 
+--Ada berapa startup logistik yang termasuk unicorn di Asia? 
+--Berapa banyak startup logistik yang termasuk unicorn di Indonesia?
+--Petunjuk: Gunakan DISTINCT dan CASE WHEN untuk menghitung total company logistik di Indonesia
+
+select count(distinct a.company_id) as jumlah_startup,
+	count(distinct case when country='Indonesia'  then a.company_id end) as country_ind
+from unicorn_companies as a
+join unicorn_industries as b
+on a.company_id = b.company_id
+where industry like '%logistics%'
+
+--Q: Di Asia terdapat tiga negara dengan jumlah unicorn terbanyak. 
+--Tampilkan data jumlah unicorn di tiap industri dan negara asal di Asia, 
+--terkecuali tiga negara tersebut. Urutkan berdasarkan industri, jumlah company (menurun), dan negara asal.
+
+with top_3 AS (select country, count(a.company_id)as  jumlah_unicorn
+from unicorn_companies a
+join unicorn_industries b
+on a.company_id=b.company_id
+where continent = 'Asia'
+group by country
+order by jumlah_unicorn desc
+limit 3)
+select industry,  count(a.company_id)as  jumlah_unicorn, country
+	from unicorn_companies a
+	join unicorn_industries b
+	on a.company_id=b.company_id
+where continent = 'Asia' and country not in (select distinct country from top_3)
+group by country, industry
+order by industry, jumlah_unicorn DESC, country
+ 	
+--Q: Amerika Serikat, China, dan India adalah tiga negara dengan jumlah unicorn paling banyak. 
+--Apakah ada industri yang tidak memiliki unicorn yang berasal dari India? Apa saja?
+
+with industry_india AS (select country, count(a.company_id)as  jumlah_unicorn, industry
+from unicorn_companies a
+join unicorn_industries b
+on a.company_id=b.company_id
+where country = 'India'
+group by country, industry
+order by industry)
+select distinct industry from unicorn_industries 
+where industry not in (select distinct industry from industry_india)
+
+
+--Q: Cari tiga industri yang memiliki paling banyak unicorn di tahun 2019-2021 
+--dan tampilkan jumlah unicorn serta rata-rata valuasinya (dalam milliar) di tiap tahun.
+with top_industry AS(
+		select industry, count(a.company_id ) as jumlah_unicorn 
+		from unicorn_companies a
+			join unicorn_industries b
+			on a.company_id = b.company_id
+			join unicorn_dates c
+			on a.company_id = c.company_id
+		where date_joined between '2019-01-01' and '2021-12-31'
+		group by industry
+		order by jumlah_unicorn desc
+		limit 3)
+select	industry,extract (year from date_joined) as year_joined, 
+		count(a.company_id), round(avg(valuation)/1000000000,2) as Avg_Valuation_billion 
+		from unicorn_companies a
+			join unicorn_industries b
+			on a.company_id=b.company_id
+			join unicorn_funding c
+			on a.company_id = c.company_id
+			join unicorn_dates d
+			on a.company_id = d.company_id
+		where industry in (select industry from top_industry)
+		group by industry, year_joined
+		order by industry, year_joined
+		
+--Q: Negara mana yang memiliki unicorn paling banyak (seperti pertanyaan nomor 1) dan
+--berapa persen proporsinya?
+
+with company_level as(select country, count(distinct company_id) as jumlah_company 
+				from unicorn_companies
+				group by country) 
+select *, round((jumlah_company/sum(jumlah_company) over())*100,2) as porpotion_company
+from company_level
+
