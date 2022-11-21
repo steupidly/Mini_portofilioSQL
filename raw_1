@@ -1,0 +1,5 @@
+-- Q: Urutkan benua berdasarkan jumlah company terbanyak. Benua mana yang memiliki unicorn paling banyak? 
+SELECT continent, count(company) as total_company
+  from unicorn_companies
+  group by continent
+order by total_company desc;
